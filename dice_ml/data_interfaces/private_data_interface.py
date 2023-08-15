@@ -49,10 +49,7 @@ class PrivateData:
         if 'mad' in params:
             self.mad = params['mad']
         else:
-            self.mad = {}
-            for feature in self.continuous_feature_names:
-                self.mad[feature] = 1.0
-
+            self.mad = {feature: 1.0 for feature in self.continuous_feature_names}
         # self.continuous_feature_names + self.categorical_feature_names
         self.feature_names = list(features_dict.keys())
 
@@ -62,16 +59,15 @@ class PrivateData:
         self.categorical_feature_indexes = [list(features_dict.keys()).index(
             name) for name in self.categorical_feature_names if name in features_dict]
 
-        if len(self.categorical_feature_names) > 0:
+        if self.categorical_feature_names:
             # simulating sklearn's one-hot-encoding
             # continuous features on the left
-            self.encoded_feature_names = [
-                feature for feature in self.continuous_feature_names]
+            self.encoded_feature_names = list(self.continuous_feature_names)
             for feature_name in self.categorical_feature_names:
-                for category in sorted(self.categorical_levels[feature_name]):
-                    self.encoded_feature_names.append(
-                        feature_name+'_'+category)
-
+                self.encoded_feature_names.extend(
+                    feature_name + '_' + category
+                    for category in sorted(self.categorical_levels[feature_name])
+                )
         if len(self.type_and_precision) == 0:
             for feature_name in self.continuous_feature_names:
                 self.type_and_precision[feature_name] = 'int'
@@ -101,13 +97,11 @@ class PrivateData:
         minx = np.array([[0.0]*len(self.encoded_feature_names)])
         maxx = np.array([[1.0]*len(self.encoded_feature_names)])
 
-        if normalized:
-            return minx, maxx
-        else:
+        if not normalized:
             for idx, feature_name in enumerate(self.continuous_feature_names):
                 minx[0][idx] = self.permitted_range[feature_name][0]
                 maxx[0][idx] = self.permitted_range[feature_name][1]
-            return minx, maxx
+        return minx, maxx
 
     def get_mads(self, normalized=True):
         """Computes Median Absolute Deviation of features."""
@@ -135,7 +129,7 @@ class PrivateData:
     def get_indexes_of_features_to_vary(self, features_to_vary='all'):
         """Gets indexes from feature names of one-hot-encoded data."""
         if features_to_vary == "all":
-            return [i for i in range(len(self.encoded_feature_names))]
+            return list(range(len(self.encoded_feature_names)))
         else:
             return [colidx for colidx, col in enumerate(self.encoded_feature_names) if col.startswith(tuple(features_to_vary))]
 
@@ -164,18 +158,15 @@ class PrivateData:
     def get_decoded_data(self, data):
         """Gets the original data from dummy encoded data."""
         if isinstance(data, np.ndarray):
-            index = [i for i in range(0, len(data))]
+            index = list(range(0, len(data)))
             data = pd.DataFrame(data=data, index=index,
                                 columns=self.encoded_feature_names)
         return self.from_dummies(data)
 
     def prepare_df_for_encoding(self):
         """Facilitates get_test_inputs() function."""
-        levels = []
         colnames = self.categorical_feature_names
-        for cat_feature in colnames:
-            levels.append(self.categorical_levels[cat_feature])
-
+        levels = [self.categorical_levels[cat_feature] for cat_feature in colnames]
         df = pd.DataFrame({colnames[0]: levels[0]})
         for col in range(1, len(colnames)):
             temp_df = pd.DataFrame({colnames[col]: levels[col]})
@@ -208,13 +199,12 @@ class PrivateData:
 
         if encode is False:
             return self.normalize_data(test)
-        else:
-            temp = self.prepare_df_for_encoding()
-            temp = temp.append(test, ignore_index=True, sort=False)
-            temp = self.one_hot_encode_data(temp)
-            temp = self.normalize_data(temp)
+        temp = self.prepare_df_for_encoding()
+        temp = temp.append(test, ignore_index=True, sort=False)
+        temp = self.one_hot_encode_data(temp)
+        temp = self.normalize_data(temp)
 
-            return temp.tail(test.shape[0]).reset_index(drop=True)
+        return temp.tail(test.shape[0]).reset_index(drop=True)
 
     def get_dev_data(self, model_interface, desired_class, filter_threshold=0.5):
         """Constructs dev data by extracting part of the test data for which finding counterfactuals make sense."""

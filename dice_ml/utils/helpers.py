@@ -55,25 +55,22 @@ def load_adult_income_dataset(save_intermediate=False):
 
     adult_data = adult_data.rename(columns={'marital-status': 'marital_status', 'hours-per-week': 'hours_per_week'})
 
-    if save_intermediate:
-        pass#adult_data.to_csv('adult.csv', index=False)
-
     return adult_data
 
 
 def get_adult_income_modelpath():
     pkg_path = dice_ml.__path__[0]
-    modelpath = os.path.join(pkg_path, 'utils', 'sample_trained_models', 'adult.h5')
-    return modelpath
+    return os.path.join(pkg_path, 'utils', 'sample_trained_models', 'adult.h5')
 
 def get_adult_data_info():
-    feature_description = {'age':'age',
-                        'workclass': 'type of industry (Government, Other/Unknown, Private, Self-Employed)',
-                        'education': 'education level (Assoc, Bachelors, Doctorate, HS-grad, Masters, Prof-school, School, Some-college)',
-                        'marital_status': 'marital status (Divorced, Married, Separated, Single, Widowed)',
-                        'occupation': 'occupation (Blue-Collar, Other/Unknown, Professional, Sales, Service, White-Collar)',
-                        'race': 'white or other race?',
-                        'gender': 'male or female?',
-                        'hours_per_week': 'total work hours per week',
-                        'income': '0 (<=50K) vs 1 (>50K)'}
-    return feature_description
+    return {
+        'age': 'age',
+        'workclass': 'type of industry (Government, Other/Unknown, Private, Self-Employed)',
+        'education': 'education level (Assoc, Bachelors, Doctorate, HS-grad, Masters, Prof-school, School, Some-college)',
+        'marital_status': 'marital status (Divorced, Married, Separated, Single, Widowed)',
+        'occupation': 'occupation (Blue-Collar, Other/Unknown, Professional, Sales, Service, White-Collar)',
+        'race': 'white or other race?',
+        'gender': 'male or female?',
+        'hours_per_week': 'total work hours per week',
+        'income': '0 (<=50K) vs 1 (>50K)',
+    }

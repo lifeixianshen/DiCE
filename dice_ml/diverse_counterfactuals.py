@@ -82,7 +82,7 @@ class CounterfactualExamples:
             print('\nDiverse Counterfactual set after sparsity correction (new outcome : %i)' %(1-round(self.test_pred)))
             display(self.final_cfs_df_sparse)  #  works only in Jupyter notebook
 
-        elif 'data_df' in self.data_interface.__dict__ and display_sparse_df==True and self.final_cfs_sparse is None:
+        elif 'data_df' in self.data_interface.__dict__ and display_sparse_df == True:
             print('Please specify a valid posthoc_sparsity_param to perform sparsity correction.. displaying without posthoc sparsity operation')
             display(self.final_cfs_df)  #  works only in Jupyter notebook
         else:
@@ -102,7 +102,7 @@ class CounterfactualExamples:
             for ix in range(len(self.final_cfs_list_sparse)):
                 print(self.final_cfs_list_sparse[ix])
 
-        elif 'data_df' in self.data_interface.__dict__ and display_sparse_df==True and self.final_cfs_sparse is None:
+        elif 'data_df' in self.data_interface.__dict__ and display_sparse_df == True:
             print('Please specify a valid posthoc_sparsity_param to perform sparsity correction.. displaying without posthoc sparsity operation')
             for ix in range(len(self.final_cfs_list)):
                 print(self.final_cfs_list[ix])

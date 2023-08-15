@@ -106,7 +106,9 @@ class DiceTensorFlow:
         """
 
         # check if hyperparameters are to be updated
-        if not collections.Counter([proximity_weight, diversity_weight, categorical_penalty]) == collections.Counter(self.hyperparameters):
+        if collections.Counter(
+            [proximity_weight, diversity_weight, categorical_penalty]
+        ) != collections.Counter(self.hyperparameters):
             self.update_hyperparameters(proximity_weight, diversity_weight, categorical_penalty)
 
         query_instance, test_pred = self.find_counterfactuals(query_instance, desired_class, learning_rate, min_iter, max_iter, project_iter, loss_diff_thres, loss_converge_maxiter, verbose, init_near_query_instance, tie_random, stopping_threshold, posthoc_sparsity_param)
@@ -226,8 +228,7 @@ class DiceTensorFlow:
                     det_entries.append(det_temp_entry)
 
         det_entries = tf.reshape(det_entries, [self.total_CFs, self.total_CFs])
-        loss_part3 = tf.matrix_determinant(det_entries)
-        return loss_part3
+        return tf.matrix_determinant(det_entries)
 
     def compute_third_part_of_loss(self, method):
         """Computes the third part (diversity) of the loss function."""
@@ -272,10 +273,10 @@ class DiceTensorFlow:
         # loss part 2: similarity between CFs and original instance
         if feature_weights == "inverse_mad":
             normalized_mads = self.data_interface.get_mads(normalized=True)
-            feature_weights = {}
-            for feature in normalized_mads:
-                feature_weights[feature] = round(1/normalized_mads[feature], 2)
-
+            feature_weights = {
+                feature: round(1 / normalized_mads[feature], 2)
+                for feature in normalized_mads
+            }
         feature_weights_list = []
         for feature in self.data_interface.encoded_feature_names:
             if feature in feature_weights:
@@ -318,8 +319,7 @@ class DiceTensorFlow:
     def scipy_optimizers(self, method="Nelder-Mead"):
         opt = tf.contrib.opt.ScipyOptimizerInterface(
             self.loss, var_list=self.cfs, method='Nelder-Mead')
-        optim_step = opt.minimize(self.loss, var_list=self.cfs)
-        return optim_step
+        return opt.minimize(self.loss, var_list=self.cfs)
 
     def initialize_CFs(self, query_instance, init_near_query_instance=False):
         """Initialize counterfactuals."""
@@ -380,26 +380,14 @@ class DiceTensorFlow:
             for v in self.encoded_categorical_feature_indexes:
                 maxs = np.argwhere(
                     cf[0, v[0]:v[-1]+1] == np.amax(cf[0, v[0]:v[-1]+1])).flatten().tolist()
-                if(len(maxs) > 1):
-                    if self.tie_random:
-                        ix = random.choice(maxs)
-                    else:
-                        ix = maxs[0]
-                else:
-                    ix = maxs[0]
+                ix = random.choice(maxs) if (len(maxs) > 1) and self.tie_random else maxs[0]
                 for vi in range(len(v)):
-                    if vi == ix:
-                        cf[0, v[vi]] = 1.0
-                    else:
-                        cf[0, v[vi]] = 0.0
+                    cf[0, v[vi]] = 1.0 if vi == ix else 0.0
             temp_cfs.append(cf)
             if assign:
                 self.dice_sess.run(self.cf_assign[index], feed_dict={
                                    self.cf_init: cf})
-        if assign:
-            return None
-        else:
-            return temp_cfs
+        return None if assign else temp_cfs
 
     def stop_loop(self, itr, loss_diff):
         """Determines the stopping condition for gradient descent."""
@@ -422,21 +410,20 @@ class DiceTensorFlow:
             self.loss_converge_iter += 1
             if self.loss_converge_iter < self.loss_converge_maxiter:
                 return False
+            temp_cfs = self.round_off_cfs(assign=False)
+            cfs_preds = [self.predict_fn(cf) for cf in temp_cfs]
+            test_preds = [np.round(preds.flatten().tolist(), 3)
+                          for preds in cfs_preds]
+            test_preds = [
+                item for sublist in test_preds for item in sublist]
+            if self.target_cf_class[0][0] == 0 and all(i <= self.stopping_threshold for i in test_preds):
+                self.converged = True
+                return True
+            elif self.target_cf_class[0][0] == 1 and all(i >= self.stopping_threshold for i in test_preds):
+                self.converged = True
+                return True
             else:
-                temp_cfs = self.round_off_cfs(assign=False)
-                cfs_preds = [self.predict_fn(cf) for cf in temp_cfs]
-                test_preds = [np.round(preds.flatten().tolist(), 3)
-                              for preds in cfs_preds]
-                test_preds = [
-                    item for sublist in test_preds for item in sublist]
-                if self.target_cf_class[0][0] == 0 and all(i <= self.stopping_threshold for i in test_preds):
-                    self.converged = True
-                    return True
-                elif self.target_cf_class[0][0] == 1 and all(i >= self.stopping_threshold for i in test_preds):
-                    self.converged = True
-                    return True
-                else:
-                    return False
+                return False
         else:
             self.loss_converge_iter = 0
             return False

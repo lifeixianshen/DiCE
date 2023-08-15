@@ -51,17 +51,13 @@ class PublicData:
         self.categorical_feature_indexes = [self.data_df.columns.get_loc(
             name) for name in self.categorical_feature_names if name in self.data_df]
 
-        if 'test_size' in params:
-            self.test_size = params['test_size']
-        else:
-            self.test_size = 0.2
-
+        self.test_size = params['test_size'] if 'test_size' in params else 0.2
         if 'test_split_random_state' in params:
             self.test_split_random_state = params['test_split_random_state']
         else:
             self.test_split_random_state = 17
 
-        if len(self.categorical_feature_names) > 0:
+        if self.categorical_feature_names:
             self.data_df[self.categorical_feature_names] = self.data_df[self.categorical_feature_names].astype(
                 'category')
         if len(self.continuous_feature_names) > 0:
@@ -73,7 +69,7 @@ class PublicData:
                     self.data_df[self.continuous_feature_names] = self.data_df[self.continuous_feature_names].astype(
                         int)
 
-        if len(self.categorical_feature_names) > 0:
+        if self.categorical_feature_names:
             self.one_hot_encoded_data = self.one_hot_encode_data(self.data_df)
             self.encoded_feature_names = [x for x in self.one_hot_encoded_data.columns.tolist(
             ) if x not in np.array([self.outcome_name])]
@@ -90,20 +86,21 @@ class PublicData:
             self.permitted_range = self.get_features_range()
 
     def get_features_range(self):
-        ranges = {}
-        for feature_name in self.continuous_feature_names:
-            ranges[feature_name] = [
-                self.train_df[feature_name].min(), self.train_df[feature_name].max()]
-        return ranges
+        return {
+            feature_name: [
+                self.train_df[feature_name].min(),
+                self.train_df[feature_name].max(),
+            ]
+            for feature_name in self.continuous_feature_names
+        }
 
     def get_data_type(self, col):
         """Infers data type of a feature from the training data."""
         for instance in col.tolist():
             if isinstance(instance, int):
                 return 'int'
-            else:
-                if float(str(instance).split('.')[1]) > 0:
-                    return 'float'
+            if float(str(instance).split('.')[1]) > 0:
+                return 'float'
         return 'int'
 
     def one_hot_encode_data(self, data):
@@ -206,7 +203,7 @@ class PublicData:
     def get_indexes_of_features_to_vary(self, features_to_vary='all'):
         """Gets indexes from feature names of one-hot-encoded data."""
         if features_to_vary == "all":
-            return [i for i in range(len(self.encoded_feature_names))]
+            return list(range(len(self.encoded_feature_names)))
         else:
             return [colidx for colidx, col in enumerate(self.encoded_feature_names) if col.startswith(tuple(features_to_vary))]
 
@@ -239,18 +236,18 @@ class PublicData:
     def get_decoded_data(self, data):
         """Gets the original data from dummy encoded data."""
         if isinstance(data, np.ndarray):
-            index = [i for i in range(0, len(data))]
+            index = list(range(0, len(data)))
             data = pd.DataFrame(data=data, index=index,
                                 columns=self.encoded_feature_names)
         return self.from_dummies(data)
 
     def prepare_df_for_encoding(self):
         """Facilitates prepare_query_instance() function."""
-        levels = []
         colnames = self.categorical_feature_names
-        for cat_feature in colnames:
-            levels.append(self.data_df[cat_feature].cat.categories.tolist())
-
+        levels = [
+            self.data_df[cat_feature].cat.categories.tolist()
+            for cat_feature in colnames
+        ]
         df = pd.DataFrame({colnames[0]: levels[0]})
         for col in range(1, len(colnames)):
             temp_df = pd.DataFrame({colnames[col]: levels[col]})
@@ -279,14 +276,13 @@ class PublicData:
 
         if encode is False:
             return self.normalize_data(test)
-        else:
-            temp = self.prepare_df_for_encoding()
+        temp = self.prepare_df_for_encoding()
 
-            temp = temp.append(test, ignore_index=True, sort=False)
-            temp = self.one_hot_encode_data(temp)
-            temp = self.normalize_data(temp)
+        temp = temp.append(test, ignore_index=True, sort=False)
+        temp = self.one_hot_encode_data(temp)
+        temp = self.normalize_data(temp)
 
-            return temp.tail(test.shape[0]).reset_index(drop=True)
+        return temp.tail(test.shape[0]).reset_index(drop=True)
 
     def get_dev_data(self, model_interface, desired_class, filter_threshold=0.5):
         """Constructs dev data by extracting part of the test data for which finding counterfactuals make sense."""
